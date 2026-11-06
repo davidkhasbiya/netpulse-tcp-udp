@@ -34,6 +34,7 @@ function statistics(rtts, sent, durationMs, payloadSize) {
       max: sorted.at(-1) ?? null,
       average: received ? rtts.reduce((sum, value) => sum + value, 0) / received : null,
       median: received ? (sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2) : null,
+      samples: rtts,
     },
     throughput: {
       bytesPerSecond,

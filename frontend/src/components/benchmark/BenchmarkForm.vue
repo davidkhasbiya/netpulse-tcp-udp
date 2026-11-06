@@ -1,0 +1,37 @@
+<script setup>
+import { reactive, ref } from 'vue'
+
+const emit = defineEmits(['submit'])
+const props = defineProps({ running: Boolean })
+const form = reactive({ protocol: 'BOTH', packetCount: 100, payloadSize: 1024, timeoutMs: 3000 })
+const errors = ref({})
+
+function validate() {
+  const next = {}
+  if (!['TCP', 'UDP', 'BOTH'].includes(form.protocol)) next.protocol = 'Pilih protokol yang valid.'
+  if (!Number.isInteger(Number(form.packetCount)) || form.packetCount < 1 || form.packetCount > 10000) next.packetCount = 'Gunakan nilai 1–10.000 paket.'
+  if (!Number.isInteger(Number(form.payloadSize)) || form.payloadSize < 1 || form.payloadSize > 60000) next.payloadSize = 'Gunakan ukuran 1–60.000 byte.'
+  if (!Number.isInteger(Number(form.timeoutMs)) || form.timeoutMs < 100 || form.timeoutMs > 10000) next.timeoutMs = 'Gunakan timeout 100–10.000 ms.'
+  errors.value = next
+  return Object.keys(next).length === 0
+}
+function submit() {
+  if (!validate()) return
+  emit('submit', { protocol: form.protocol, packetCount: Number(form.packetCount), payloadSize: Number(form.payloadSize), timeoutMs: Number(form.timeoutMs) })
+}
+</script>
+
+<template>
+  <section class="panel config-panel">
+    <div class="panel-heading"><div><p class="eyebrow">TEST CONFIGURATION</p><h2>Set up a benchmark</h2><p class="muted">Configure the workload to compare protocol behavior on your local network.</p></div><span class="config-icon">⌁</span></div>
+    <form @submit.prevent="submit" novalidate>
+      <label class="field field-wide"><span>Protocol</span><select v-model="form.protocol"><option>TCP</option><option>UDP</option><option>BOTH</option></select><small>Run one protocol or compare both with the same workload.</small><em v-if="errors.protocol">{{ errors.protocol }}</em></label>
+      <div class="field-grid">
+        <label class="field"><span>Packet count</span><div class="input-suffix"><input v-model.number="form.packetCount" type="number" min="1" max="10000"><b>pkts</b></div><small>Number of sequential messages sent.</small><em v-if="errors.packetCount">{{ errors.packetCount }}</em></label>
+        <label class="field"><span>Payload size</span><div class="input-suffix"><input v-model.number="form.payloadSize" type="number" min="1" max="60000"><b>bytes</b></div><small>Application payload per packet.</small><em v-if="errors.payloadSize">{{ errors.payloadSize }}</em></label>
+        <label class="field"><span>Response timeout</span><div class="input-suffix"><input v-model.number="form.timeoutMs" type="number" min="100" max="10000"><b>ms</b></div><small>Maximum wait for each response.</small><em v-if="errors.timeoutMs">{{ errors.timeoutMs }}</em></label>
+      </div>
+      <div class="form-footer"><span class="native-note"><i></i> Native socket measurement</span><button class="primary-button" type="submit" :disabled="props.running"><span v-if="props.running" class="spinner"></span>{{ props.running ? 'Running benchmark' : 'Start benchmark' }} <b v-if="!props.running">→</b></button></div>
+    </form>
+  </section>
+</template>
