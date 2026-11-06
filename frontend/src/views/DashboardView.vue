@@ -1,28 +1,12 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import Sidebar from '../components/layout/Sidebar.vue'
-import Topbar from '../components/layout/Topbar.vue'
-import BenchmarkForm from '../components/benchmark/BenchmarkForm.vue'
-import ResultsPanel from '../components/results/ResultsPanel.vue'
-import BenchmarkCharts from '../components/results/BenchmarkCharts.vue'
-import { getBackendHealth, runBenchmark } from '../services/benchmarkService.js'
+import { onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
+import { benchmarkSession, refreshBackendStatus } from '../services/benchmarkSession.js'
 
-const running = ref(false)
-const backendOnline = ref(false)
-const result = ref(null)
-const error = ref('')
-const successMessage = ref('')
-
-async function checkHealth() {
-  try { await getBackendHealth(); backendOnline.value = true } catch { backendOnline.value = false }
-}
-async function startBenchmark(config) {
-  running.value = true; error.value = ''; successMessage.value = ''
-  try { result.value = await runBenchmark(config); backendOnline.value = true; successMessage.value = 'Benchmark completed successfully.' } catch (err) { error.value = err.message; backendOnline.value = false } finally { running.value = false }
-}
-onMounted(checkHealth)
+onMounted(refreshBackendStatus)
+function metric(protocol, key) { const data = benchmarkSession.result?.results?.[protocol]; if (!data) return '—'; if (key === 'rtt') return data.latency?.average == null ? '—' : `${Number(data.latency.average).toFixed(2)} ms`; if (key === 'throughput') return `${(Number(data.throughput?.bytesPerSecond || 0) / 1024).toFixed(2)} KB/s`; if (key === 'loss') return `${Number(data.packetLossRate || 0).toFixed(2)}%`; return `${data.received ?? 0} / ${data.sent ?? 0}` }
 </script>
 
 <template>
-  <div class="app-shell"><Sidebar active-item="Dashboard" /><div class="page-shell"><Topbar :backend-online="backendOnline" :running="running" /><main class="main-content"><div class="page-intro"><div><p class="eyebrow">NETWORK PERFORMANCE LAB <span class="live-mark">LIVE</span></p><h1>Benchmark workspace</h1><p class="intro-copy">Measure how TCP and UDP behave under the same workload.</p></div><div class="server-chip"><span class="pulse-ring"></span><div><small>SERVER STATUS</small><strong>{{ backendOnline ? 'All systems operational' : 'Waiting for backend' }}</strong></div></div></div><div v-if="error" class="alert error-alert"><strong>Benchmark could not be completed</strong><span>{{ error }}</span></div><div v-if="successMessage" class="alert success-alert"><strong>{{ successMessage }}</strong><span>Results below reflect the latest socket measurement.</span></div><div class="content-grid"><BenchmarkForm :running="running" @submit="startBenchmark" /><aside class="how-panel"><p class="eyebrow">HOW IT WORKS</p><h3>One workload.<br><span>Two protocols.</span></h3><div class="flow"><div><b>01</b><span>Configure payload and packet count</span></div><div><b>02</b><span>Send through native Node sockets</span></div><div><b>03</b><span>Compare measured response data</span></div></div><div class="protocol-legend"><span><i class="legend-dot tcp-dot"></i>TCP</span><span><i class="legend-dot udp-dot"></i>UDP</span></div></aside></div><section v-if="running" class="loading-state panel"><span class="loading-bars"><i></i><i></i><i></i></span><h2>Benchmark in progress</h2><p>Sending packets through the selected native socket. Results will appear when the run completes.</p></section><template v-else><ResultsPanel :result="result" /><BenchmarkCharts v-if="result" :result="result" /></template></main></div></div>
+  <main class="main-content"><div class="page-intro"><div><p class="eyebrow">NETWORK PERFORMANCE LAB <span class="live-mark">LIVE</span></p><h1>Dashboard overview</h1><p class="intro-copy">A clear view of your latest TCP and UDP measurement.</p></div></div><section class="overview-hero panel"><div><p class="eyebrow">SYSTEM STATUS</p><h2>{{ benchmarkSession.backendOnline ? 'Backend is ready for testing' : 'Backend connection required' }}</h2><p>{{ benchmarkSession.backendOnline ? 'Native TCP and UDP sockets are available on the local workspace.' : 'Start the backend to begin measuring protocol performance.' }}</p></div><RouterLink class="primary-button" to="/benchmark">{{ benchmarkSession.result ? 'Run another benchmark' : 'Start a benchmark' }} <b>→</b></RouterLink></section><div v-if="!benchmarkSession.result" class="empty-state panel"><div class="empty-visual"><span></span><span></span><span></span></div><h2>No benchmark summary yet</h2><p>Run a benchmark to populate this overview with actual measurements.</p><RouterLink class="text-link" to="/benchmark">Open benchmark workspace →</RouterLink></div><template v-else><div class="summary-heading"><div><p class="eyebrow">LATEST BENCHMARK · {{ benchmarkSession.result.testId }}</p><h2>Measurement summary</h2></div><RouterLink class="text-link" to="/results">View full results →</RouterLink></div><div class="metric-grid"><article class="metric-card"><span>Average RTT</span><strong>{{ metric('TCP', 'rtt') }}<template v-if="benchmarkSession.result.results.UDP"> <small class="compare-value">/ {{ metric('UDP', 'rtt') }}</small></template></strong><small>{{ benchmarkSession.result.config.protocol === 'BOTH' ? 'TCP / UDP' : benchmarkSession.result.config.protocol }}</small></article><article class="metric-card"><span>Throughput</span><strong>{{ metric('TCP', 'throughput') }}</strong><small>{{ benchmarkSession.result.config.protocol === 'BOTH' ? 'TCP baseline' : benchmarkSession.result.config.protocol }}</small></article><article class="metric-card"><span>Packet loss</span><strong>{{ metric('TCP', 'loss') }}</strong><small>{{ benchmarkSession.result.config.packetCount }} packets configured</small></article><article class="metric-card"><span>Packets received</span><strong>{{ metric('TCP', 'received') }}</strong><small>Latest completed run</small></article></div></template></main>
 </template>
