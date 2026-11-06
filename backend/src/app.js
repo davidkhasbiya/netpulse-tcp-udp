@@ -3,6 +3,7 @@ import express from 'express'
 import http from 'node:http'
 
 import healthRouter from './routes/health.js'
+import benchmarkRouter from './routes/benchmark.js'
 import { closeTcpServer, createTcpServer } from './servers/tcpServer.js'
 import { closeUdpServer, createUdpServer } from './servers/udpServer.js'
 
@@ -14,6 +15,7 @@ const udpPort = Number(process.env.UDP_PORT) || 5004
 app.use(cors({ origin: 'http://localhost:5173' }))
 app.use(express.json())
 app.use('/api', healthRouter)
+app.use('/api', benchmarkRouter)
 
 const httpServer = http.createServer(app)
 const tcpServer = createTcpServer({ port: tcpPort })

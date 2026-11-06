@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/app.js",
     "start": "node src/app.js",
-    "test:protocols": "node scripts/testClients.js"
+    "test:protocols": "node scripts/testClients.js",
+    "test:benchmark": "node scripts/testBenchmark.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
