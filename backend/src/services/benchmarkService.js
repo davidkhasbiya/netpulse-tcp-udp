@@ -1,12 +1,17 @@
 import net from 'node:net'
 import dgram from 'node:dgram'
 
-const DEFAULTS = { protocol: 'BOTH', packetCount: 10, payloadSize: 1024, timeoutMs: 3000 }
+const DEFAULTS = { protocol: 'BOTH', packetCount: 10, payloadSize: 1024, timeoutMs: 3000, targetHost: '127.0.0.1' }
 const LIMITS = { packetCount: 1000, payloadSize: 64 * 1024, timeoutMs: 30000 }
+const HOSTNAME_PATTERN = /^(localhost|[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)$/
 
 export function validateBenchmarkConfig(input = {}) {
   const config = { ...DEFAULTS, ...input }
   if (!['TCP', 'UDP', 'BOTH'].includes(config.protocol)) throw new Error('protocol must be TCP, UDP, or BOTH')
+  const targetHost = typeof config.targetHost === 'string' ? config.targetHost.trim() : ''
+  if (!targetHost || targetHost.length > 253 || (net.isIP(targetHost) !== 4 && !HOSTNAME_PATTERN.test(targetHost))) {
+    throw new Error('targetHost must be a valid LAN IP address or hostname')
+  }
   for (const field of ['packetCount', 'payloadSize', 'timeoutMs']) {
     if (!Number.isInteger(config[field]) || config[field] < 1 || config[field] > LIMITS[field]) {
       throw new Error(`${field} must be an integer between 1 and ${LIMITS[field]}`)
@@ -49,7 +54,7 @@ function messageFor(testId, sequence, payloadSize) {
 }
 
 function tcpBenchmark({ host, port, testId, packetCount, payloadSize, timeoutMs }) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host, port })
     let buffer = ''
     let pending
@@ -65,7 +70,13 @@ function tcpBenchmark({ host, port, testId, packetCount, payloadSize, timeoutMs 
       socket.destroy()
       resolve(statistics(rtts, sent, elapsedMs(benchmarkStart), payloadSize))
     }
-    const failPending = () => {
+    const failPending = (error) => {
+      if (error && sent === 0) {
+        finished = true
+        socket.destroy()
+        reject(new Error(`TCP connection to ${host}:${port} failed: ${error.code || error.message}`))
+        return
+      }
       pending = undefined
       finish()
     }
@@ -141,7 +152,7 @@ export async function runBenchmark(input, options = {}) {
   const config = validateBenchmarkConfig(input)
   const testId = options.testId ?? `benchmark-${Date.now()}`
   const common = {
-    host: options.host ?? '127.0.0.1',
+    host: config.targetHost,
     testId,
     packetCount: config.packetCount,
     payloadSize: config.payloadSize,

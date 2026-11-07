@@ -78,3 +78,40 @@ npm run test:benchmark
 ```
 
 Test tersebut menjalankan `BOTH` melalui API dengan socket TCP/UDP nyata dan memverifikasi penolakan parameter invalid. Hasil bergantung pada kondisi mesin dan jaringan saat pengujian; tidak ada hasil yang di-hardcode.
+
+## Benchmark LAN/Wi-Fi
+
+Laptop Host menjalankan backend dan socket server. Server TCP dan UDP bind ke `0.0.0.0`, sehingga dapat menerima koneksi dari jaringan lokal; port default tetap `5003` untuk TCP dan `5004` untuk UDP. Ini tidak membuka server secara otomatis ke internet—gunakan hanya pada jaringan LAN/Wi-Fi tepercaya dan aturan firewall yang diperlukan.
+
+### Host (Laptop A)
+
+1. Dapatkan IP LAN Host di Windows:
+
+   ```powershell
+   ipconfig
+   ```
+
+   Gunakan nilai `IPv4 Address` dari adapter Wi-Fi atau Ethernet, misalnya `192.168.1.10`.
+
+2. Jalankan backend pada Host:
+
+   ```powershell
+   cd backend
+   $env:PORT=4001
+   $env:TCP_PORT=5003
+   $env:UDP_PORT=5004
+   npm run dev
+   ```
+
+3. Izinkan inbound TCP port `5003` dan UDP port `5004` pada Windows Firewall untuk jaringan Private/LAN. Jangan membuat aturan port untuk Public profile atau meneruskan port ke internet.
+
+### Client (Laptop B)
+
+1. Jalankan frontend dan backend/client API sesuai setup project.
+2. Buka frontend pada `http://localhost:5173`.
+3. Pada halaman Benchmark, isi `Target host` dengan IPv4 Host, misalnya `192.168.1.10`. Default `127.0.0.1` tetap digunakan untuk benchmark lokal.
+4. Pilih TCP, UDP, atau BOTH lalu jalankan benchmark. TCP/UDP port mengikuti `TCP_PORT` dan `UDP_PORT` yang dikonfigurasi pada backend Client/API.
+
+Untuk pengujian manual dari Laptop B, pastikan kedua laptop berada pada subnet yang sama, firewall Host mengizinkan port yang benar, dan Host dapat dijangkau dengan `Test-Connection 192.168.1.10` atau `Test-NetConnection 192.168.1.10 -Port 5003`.
+
+Jika muncul `connection refused`, server pada Host belum aktif atau port/firewall salah. Jika benchmark UDP menghasilkan timeout, cek alamat IP, subnet, Wi-Fi client isolation, dan izin UDP `5004`. Target yang tidak valid ditolak sebelum socket benchmark dijalankan.
