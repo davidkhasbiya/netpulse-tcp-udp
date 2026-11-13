@@ -2,6 +2,10 @@
 
 NetPulse membandingkan komunikasi TCP dan UDP menggunakan Vue 3 + Vite pada frontend dan Node.js + Express pada backend. Backend menjalankan HTTP health check, TCP server berbasis `node:net`, dan UDP server berbasis `node:dgram` secara bersamaan.
 
+## Preview
+<img width="1396" height="810" alt="image" src="https://github.com/user-attachments/assets/9df2d6ae-c910-4086-a155-5c22dddb4f8d" />
+
+
 ## Port default
 
 - HTTP/Express: `4001`
